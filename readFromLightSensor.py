@@ -31,3 +31,4 @@ def getAndUpdateColour():
         print()
         
         time.sleep(2) 
+getAndUpdateColour()
