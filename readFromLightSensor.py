@@ -26,13 +26,13 @@ def getAndUpdateColour():
         blue = data[5] * 256 + data[4]
 
         if green > red and green > blue:
-            print("The color is green with RGB value %d" % green)
+            print("The color is green with RGB value %d\n" % green)
 
         if blue > red and blue > green:
-            print("The color is green with RGB value %d" % blue)
+            print("The color is blue with RGB value %d\n" % blue)
             
         if red > blue and red > green:
-            print("The color is green with RGB value %d" % red)
+            print("The color is red with RGB value %d\n" % red)
         
         # Output data to the console RGB values
         # Uncomment the line below when you have read the red, green and blue values
