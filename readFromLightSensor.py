@@ -26,7 +26,7 @@ def getAndUpdateColour():
         blue = data[5] * 256 + data[4]
 
         # The blue value is consistently about half of the others, which is causing it to never read blue:
-        blue = blue * 1.5
+        blue = blue * 1.65
 
         if green > red and green > blue:
             print("The color is green with RGB value %d\n" % green)
