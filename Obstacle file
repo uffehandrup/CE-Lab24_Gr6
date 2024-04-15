@@ -1,0 +1,70 @@
+def obstacle(self):
+        twist = Twist()
+        turtlebot_moving = True
+        endtime = time.time() + 30
+
+
+        while time.time() < endtime:
+            lidar_distances = self.get_scan()
+            min_distance = min(lidar_distances)
+            samples = len(lidar_distances)
+            #print('Samples is: ',samples)
+            left_distance = [x for x in lidar_distances[45:]]
+            right_distance = [x for x in lidar_distances[:45]]
+            right_distance2 = [x for x in lidar_distances[:45]]
+            left_distance2 = [x for x in lidar_distances[45:]]
+
+
+            if min_distance < SAFE_STOP_DISTANCE:
+                #if turtlebot_moving:
+                    #twist.linear.x = 0.0
+                    #twist.angular.z = 0.0
+                    #self._cmd_pub.publish(twist)
+                    #turtlebot_moving = False
+                    #rospy.loginfo('Stop!')
+                if sum(left_distance)/len(left_distance) < 0.2 and left_distance != [0] and sum(right_distance)/len(right_distance) < 0.2 and right_distance != [0]:
+                    # Obstacles on both sides, reverse and turn slightly
+                    twist.linear.x = -0.2  # Reverse at a slower speed
+                    twist.angular.z = -0.6   # Turn slightly
+                    self._cmd_pub.publish(twist)
+                    time.sleep(0.5)
+                elif sum(left_distance2)/len(left_distance2) < 0.15 and left_distance2 != [0] and sum(right_distance2)/len(right_distance2) > 0.15:
+                    twist.linear.x = -0.2
+                    twist.angular.z = -0.6
+                    print('Close obstacle on the left!')
+                    self._cmd_pub.publish(twist)
+                    time.sleep(1)
+                elif sum(right_distance2)/len(right_distance2) < 0.15 and right_distance2 != [0] and sum(left_distance2)/len(left_distance2) > 0.15:
+                    twist.linear.x = -0.2
+                    twist.angular.z = 0.6
+                    print('Close obstacle on the right!')
+                    self._cmd_pub.publish(twist)
+                    time.sleep(1)
+                elif sum(left_distance)/len(left_distance) < 0.4 and left_distance != [0]:
+                    twist.angular.z = -0.3
+                    twist.linear.x = 0.15
+                    print('Obstacle on the left!')
+                elif sum(right_distance)/len(right_distance) < 0.4 and right_distance != [0]:
+                    twist.angular.z = 0.3
+                    twist.linear.x = 0.15
+                    print('Obstacle on the right!')
+                else:
+                    twist.linear.x = LINEAR_VEL
+                    twist.angular.z = 0.0
+                    turtlebot_moving = True
+                    #rospy.loginfo('Distance of the obstacle: %f', min_distance)
+                self._cmd_pub.publish(twist)
+
+
+            else:
+                twist.linear.x = LINEAR_VEL
+                twist.angular.z = 0.0
+                self._cmd_pub.publish(twist)
+                turtlebot_moving = True
+                #rospy.loginfo('Distance of the obstacle : %f', min_distance)
+
+        twist.linear.x = 0.0
+        twist.angular.z = 0.0
+        self._cmd_pub.publish(twist)
+        turtlebot_moving = False
+        rospy.loginfo('Stop the code!')
