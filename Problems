@@ -13,4 +13,8 @@ The first and most problematic one was the wrong driver. We had the older lidar 
 by reading the angle from -45 degrees to 0 and 0 to 45 degrees and taking the average. This seemed to be the most stable way of reading the distance to objects. 
 It was however a bit limiting as we then limited our bot to only be able to look to the left and to the right. 
 
+After trying to create a new file which failed, we tried to use our new code by replacing it in the original file whilst backing the 
+original file up in github. This however seemed to destroy the file even though we copied the exact code back to the file. So now
+nothing is working.
+
 
