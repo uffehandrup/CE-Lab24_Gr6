@@ -1,0 +1,3 @@
+We've had several problems, but one reccuring problem we've had is that the OpenCR's firmware stops working everytime we meet in again on monday. We haven't figured out the root of the 
+problem, but we found that re setupping the firmware was the solution even if a bit temporary. The weird thing was, that it wasn't when we restarted the bot, only when we met monday 
+morning. 
