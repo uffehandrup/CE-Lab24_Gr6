@@ -1,0 +1,245 @@
+#!/usr/bin/env python
+#################################################################################
+# Copyright 2018 ROBOTIS CO., LTD.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#################################################################################
+
+# Authors: Gilbert #
+
+import rospy
+import math
+import time
+from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import Twist
+import smbus
+import RPi.GPIO as GPIO
+
+LINEAR_VEL = 0.15
+STOP_DISTANCE = 0.2
+LIDAR_ERROR = 0.05
+SAFE_STOP_DISTANCE = STOP_DISTANCE + LIDAR_ERROR
+
+# Use BCM GPIO references instead of physical pin numbers
+GPIO.setmode(GPIO.BCM)
+
+GPIO_LED = 17
+GPIO.setup(GPIO_LED, GPIO.OUT)       # LED pin as output
+
+
+class Obstacle():
+    def __init__(self):
+        self._cmd_pub = rospy.Publisher('cmd_vel', Twist, queue_size=1)
+        self.bus = smbus.SMBus(1)  # Make bus a class attribute
+        # ISL29125 address, 0x44(68)
+        # Select configuation-1register, 0x01(01)
+        # 0x0D(13) Operation: RGB, Range: 360 lux, Res: 16 Bits
+        self.bus.write_byte_data(0x44, 0x01, 0x05)
+        time.sleep(1)
+        print("Reading colour values and displaying them in a new window\n")
+        self.obstacle()
+
+    def get_scan(self):
+        scan = rospy.wait_for_message('scan', LaserScan)
+        scan_filter = []
+
+        samples = len(scan.ranges)  # The number of samples is defined in
+                                    # turtlebot3_<model>.gazebo.xacro file,
+                                    # the default is 360.
+        samples_view = 90           # 1 <= samples_view <= samples
+
+        if samples_view > samples:
+            samples_view = samples
+
+        if samples_view is 1:
+            scan_filter.append(scan.ranges[0])
+
+        else:
+            left_lidar_samples_ranges = -(samples_view//2 + samples_view % 2)
+            right_lidar_samples_ranges = samples_view//2
+
+            left_lidar_samples = scan.ranges[left_lidar_samples_ranges:]
+            right_lidar_samples = scan.ranges[:right_lidar_samples_ranges]
+            scan_filter.extend(left_lidar_samples + right_lidar_samples)
+
+        for i in range(samples_view):
+            if scan_filter[i] == float('Inf'):
+                scan_filter[i] = 3.5
+            elif math.isnan(scan_filter[i]):
+                scan_filter[i] = 0
+
+        return scan_filter
+
+
+    def getAndUpdateColour(self):
+        # Read the data from the sensor
+        # Insert code here
+        data = self.bus.read_i2c_block_data(0x44, 0x09, 6)
+        # Convert the data to green, red and blue int values
+        # Insert code here
+        green = data[1] * 256 + data[0]
+        red = data[3] * 256 + data[2]
+        blue = data[5] * 256 + data[4]
+
+        # The blue value is consistently about half of the others, which is causing it to never read blue:
+        blue = blue * 1.65
+        colour = 0
+        #if green > red and green > blue:
+                #print("The color is green with RGB value %d\n" % green)
+
+        #if blue > red and blue > green:
+                #print("The color is blue with RGB value %d\n" % blue)
+
+        if red > blue and red > green:
+                print("The color is red with RGB value %d\n" % red)
+                colour = 3
+        else:
+                colour = 0
+        # Output data to the console RGB values
+        # Uncomment the line below when you have read the red, green and blue values
+        #print("RGB(%d %d %d)" % (red, green, blue))
+
+        return colour
+
+    def linear_vel(self, center_distance):
+        return 0.107659 * center_distance**2+0.383663*center_distance-0.121094
+
+    def angular_vel(self, center_distance):
+        return 1.3602*center_distance**2-4.74396*center_distance+4.13376
+
+    def obstacle(self):
+        twist = Twist()
+        turtlebot_moving = True
+        endtime = time.time() + 30
+        count = 0
+        vel = 0
+        victims = 0
+        avgsp = 0
+        collision = 0
+        goingleft = 0
+        goingright = 0
+        while time.time() < endtime:
+            colour = self.getAndUpdateColour()
+            lidar_distances = self.get_scan()
+            min_distance = min(lidar_distances)
+            samples = len(lidar_distances)
+            #print('Samples is: ',samples)
+            left_distance = [x for x in lidar_distances[10:36]]
+            right_distance = [x for x in lidar_distances[55:81]]
+            center_distance = [x for x in lidar_distances[30:62]]
+            center_avg = sum(center_distance)/len(center_distance)
+            twist.linear.x = self.linear_vel(center_avg)
+            twist.angular.z = self.angular_vel(center_avg)
+
+            if min_distance < SAFE_STOP_DISTANCE:
+                #if turtlebot_moving:
+                    #twist.linear.x = 0.0
+                    #twist.angular.z = 0.0
+                    #self._cmd_pub.publish(twist)
+                    #turtlebot_moving = False
+                    #rospy.loginfo('Stop!')
+                if colour == 3:
+                    victims = victims + 1
+                    print('Victim found! Number of victims found in total: ',victims)
+                elif sum(center_distance)/len(center_distance) < 0.5 and center_distance != [0]:
+                    twist.angular.z = 0
+                elif sum(left_distance)/len(left_distance) < 0.2 and goingleft == 1 and left_distance != [0] and sum(right_distance)/len(right_distance) < 0.2 and right_distance != [0]:
+                    # Obstacles on both sides, reverse and turn slightly
+                    #twist.linear.x = -0.2  # Reverse at a slower speed
+                    twist.angular.z *= -1   # Turn slightly
+                    goingleft = 1
+                    goingright = 0
+                    self._cmd_pub.publish(twist)
+                    time.sleep(0.4)
+                elif sum(left_distance)/len(left_distance) < 0.2 and goingleft == 0 and left_distance != [0] and sum(right_distance)/len(right_distance) < 0.2 and right_distance != [0]:
+                    # Obstacles on both sides, reverse and turn slightly
+                    #twist.linear.x = -0.2  # Reverse at a slower speed
+                    twist.angular.z *= 1   # Turn slightly
+                    goingleft = 0
+                    goingright = 1
+                    self._cmd_pub.publish(twist)
+                    time.sleep(0.4)
+                elif sum(left_distance)/len(left_distance) < 0.15 and left_distance != [0] and sum(right_distance)/len(right_distance) > 0.15:
+                    #twist.linear.x = -0.2
+                    twist.angular.z *= -1
+                    goingright = 1
+                    goingleft = 0
+                    print('Close obstacle on the left!')
+                    self._cmd_pub.publish(twist)
+                    time.sleep(0.4)
+                elif sum(right_distance)/len(right_distance) < 0.15 and right_distance != [0] and sum(left_distance)/len(left_distance) > 0.15:
+                    #twist.linear.x = -0.2
+                    twist.angular.z = -1
+                    goingleft = 1
+                    goingright = 0
+                    print('Close obstacle on the right!')
+                    self._cmd_pub.publish(twist)
+                    time.sleep(0.5)
+                elif sum(left_distance)/len(left_distance) < 0.4 and left_distance != [0]:
+                    twist.angular.z *= -1
+                    #twist.linear.x = 0.15
+                    goingleft = 0
+                    goingright = 1
+                    print('Obstacle on the left!')
+                elif sum(right_distance)/len(right_distance) < 0.4 and right_distance != [0]:
+                    twist.angular.z *= 1
+                    #twist.linear.x = 0.15
+                    goingleft = 1
+                    goingright = 0
+                    print('Obstacle on the right!')
+                else:
+                    #twist.linear.x = LINEAR_VEL
+                    twist.angular.z = 0.0
+                    turtlebot_moving = True
+                    #rospy.loginfo('Distance of the obstacle: %f', min_distance)
+                self._cmd_pub.publish(twist)
+
+
+            else:
+                #twist.linear.x = LINEAR_VEL
+                twist.angular.z = 0.0
+                self._cmd_pub.publish(twist)
+                turtlebot_moving = True
+                #rospy.loginfo('Distance of the obstacle : %f', min_distance)
+
+            count = count + 1
+            vel = vel + twist.linear.x + twist.angular.z
+            avgsp = vel/count
+            if colour == 3:
+                for i in range(0,5):
+                    GPIO.output(GPIO_LED, GPIO.HIGH)
+                    time.sleep(0.2) #wait 0.2 second before next measurement
+                    GPIO.output(GPIO_LED, GPIO.LOW)
+                    time.sleep(0.2)
+            else:
+                GPIO.output(GPIO_LED, GPIO.LOW)
+                time.sleep(0.2) #wait 1 second before next measurement
+            if sum(left_distance)/len(left_distance) < 0.15 and left_distance != [0] and sum(right_distance)/len(right_distance) > 0.15:
+                collision = collision + 1
+                print('Collision registered! Number of collisions are now: ', collision)
+        twist.linear.x = 0.0
+        twist.angular.z = 0.0
+        self._cmd_pub.publish(twist)
+        turtlebot_moving = False
+        print('This is the average speed: ',avgsp)
+        rospy.loginfo('Stop the code!')
+        GPIO.cleanup()
+def main():
+    rospy.init_node('turtlebot3_obstacle')
+    try:
+        obstacle = Obstacle()
+    except rospy.ROSInterruptException:
+        pass
+
+if __name__ == '__main__':
+    main()
