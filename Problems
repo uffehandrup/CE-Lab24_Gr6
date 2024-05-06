@@ -17,4 +17,13 @@ After trying to create a new file which failed, we tried to use our new code by 
 original file up in github. This however seemed to destroy the file even though we copied the exact code back to the file. So now
 nothing is working.
 
+Week 10: Our Lidar sensor came a bit loose over the week, when we were not present. We have no idea what happened but kept working with it, as we didn't see another option
+At week 13 we had to switch to another bot, because the lidar sensor had become fully loose and was sliding all over the place giving very very inconsistent readings.
+This unfortunately came with a whole new set of problems as we had to reconfigure our network which we first had to troubleshoot and update some things in the bot.
+We also had to reconnect the light and color sensor. After this we still had loads of trouble getting it to run as the lidar sensor fully didnt work.
+It was only printing zeroes when trying to read from it. The left wheel also didnt work at all in the first 15 seconds. Then it turned on but couldn't navigate
+because of the faulty sensor. 
+The most annoying thing of all is that bot 20 was fully working and operational, with everything configured correctly. Someone had messed with the screws
+for the lidar which caused it to literally fall off of the bot when it was driving. 
+
 
