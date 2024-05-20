@@ -24,6 +24,9 @@ We also had to reconnect the light and color sensor. After this we still had loa
 It was only printing zeroes when trying to read from it. The left wheel also didnt work at all in the first 15 seconds. Then it turned on but couldn't navigate
 because of the faulty sensor. 
 The most annoying thing of all is that bot 20 was fully working and operational, with everything configured correctly. Someone had messed with the screws
-for the lidar which caused it to literally fall off of the bot when it was driving. 
+for the lidar which caused it to literally fall off of the bot when it was driving. We unfortunately couldn't just go back to our old bot once the LiDAR sensor had been attached again
+as the bot was lent to a different group who when using it smelled a burned smell and then the bot was decommisioned completely leaving us with the only option of trying to adapt our code
+to a different bot with only one week to go. It was not ideal, but we ended up with a working bot however it was defineitely not working as well with our code as the old one, which makes sense
+as all the bots had different kind of quirks with the LiDAR sensors and so on. 
 
 
